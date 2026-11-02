@@ -12,9 +12,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "types": ["node"],
-    "baseUrl": ".",
     "paths": {
-      "@backend/*": ["src/*"]
+      "@backend/*": ["./src/*"]
     }
   },
   "include": ["prisma.config.ts", "src/**/*.ts", "src/**/*.js"],

@@ -11,11 +11,11 @@ export const GET = withApiErrors("admin.overview", async () => {
   if (!session || session.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const [metrics, recent, scores] = await Promise.all([
     db().query(
-      `SELECT (SELECT count(*) FROM clients)::int AS total_clients,
-       count(*)::int AS total_audits,
-       count(*) FILTER(WHERE status='completed')::int AS completed_audits,
-       count(*) FILTER(WHERE status='failed')::int AS failed_audits
-       FROM audits a LEFT JOIN audit_results r ON r.audit_id=a.id`
+      `SELECT
+       (SELECT count(*)::int FROM clients) AS total_clients,
+       (SELECT count(*)::int FROM audits) AS total_audits,
+       (SELECT count(*)::int FROM audits WHERE status='completed') AS completed_audits,
+       (SELECT count(*)::int FROM audits WHERE status='failed') AS failed_audits`
     ),
     db().query(
       `SELECT a.id,c.name AS client_name,a.website_url,a.status,a.progress,a.created_at,a.error_message,

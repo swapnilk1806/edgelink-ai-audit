@@ -25,4 +25,12 @@ export function getEnv() {
   return parsed.data;
 }
 
-export const useMocks = process.env.USE_MOCKS === "true";
+function readUseMocks() {
+  const value = process.env.USE_MOCKS?.trim().toLowerCase();
+  if (!value) return true;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error("USE_MOCKS must be either true or false");
+}
+
+export const useMocks = readUseMocks();
