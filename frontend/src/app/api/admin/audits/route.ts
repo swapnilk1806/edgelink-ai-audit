@@ -8,6 +8,7 @@ import { withApiErrors } from "@/lib/api-errors";
 import { scoreSeoSignals } from "@backend/lib/seo-scoring";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 const input = z.object({ client_id: z.string().uuid(), website_url: websiteUrlSchema });
 export const GET = withApiErrors("admin.audits.list", async () => {

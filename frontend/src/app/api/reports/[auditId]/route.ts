@@ -8,6 +8,7 @@ import { generatePdf } from "@backend/lib/reports";
 import { auditResultSchema } from "@backend/lib/audit-schema";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export const GET = withApiErrors("reports.download", async (_request: Request, { params }: { params: { auditId: string } }) => {
   const session = await getSession();
