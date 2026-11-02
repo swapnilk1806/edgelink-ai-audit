@@ -17,6 +17,10 @@ const nextConfig = {
     externalDir: true,
     serverComponentsExternalPackages: ["puppeteer-core", "@sparticuz/chromium", "bullmq"],
     serverActions: { bodySizeLimit: "1mb" }
+  },
+  webpack(config) {
+    config.resolve.alias["@valkey/valkey-glide"] = false;
+    return config;
   }
 };
 
