@@ -46,6 +46,7 @@ Create the backend environment file:
 
 ```powershell
 Copy-Item backend\.env.example backend\.env
+Copy-Item frontend\.env.example frontend\.env
 ```
 
 Edit `backend/.env` and set at least:
@@ -65,7 +66,7 @@ SEED_PASSWORD=replace-with-a-strong-password
 
 Use the Redis **TCP** connection URL, not an HTTPS REST URL or token. Use the same `SESSION_SECRET` for the web app and worker. `DATABASE_SSL=auto` uses TLS for remote production databases and disables it for localhost; it also accepts `true` or `false`.
 
-The frontend reads its server-side environment from `backend/.env` through `frontend/next.config.mjs`. `frontend/.env` is reserved for frontend-only settings and is not required for the current setup. Do not put database credentials, Redis credentials, session secrets, or API keys in `NEXT_PUBLIC_*` variables.
+The frontend reads its server-side environment from `backend/.env` through `frontend/next.config.mjs`; `frontend/.env` contains the same runtime values as a local fallback. Keep those shared values in sync. The backend file is loaded first. Do not put database credentials, Redis credentials, session secrets, or API keys in `NEXT_PUBLIC_*` variables.
 
 ### Initialize the database
 
@@ -117,7 +118,7 @@ These routes are part of the Next.js app and share its host and port:
 
 ## Environment variables
 
-The environment template is `backend/.env.example`. Set these in `backend/.env` locally and in the deployment platform's environment settings:
+Use `backend/.env.example` and `frontend/.env.example` as local templates. Keep shared runtime values in both local files; set the corresponding values in the deployment platform's environment settings:
 
 | Variable | Required | Purpose |
 |---|---:|---|
@@ -197,7 +198,7 @@ frontend/
   src/app/                 Pages and Next.js API routes
   src/components/          Admin, authentication, and client UI
   next.config.mjs          Loads local backend environment for server routes
-  .env.example             Frontend-only environment template
+  .env.example             Frontend server environment template
 backend/
   src/db/                  SQL setup and seed script
   src/lib/                 Database, queue, crawl, AI, and report services
