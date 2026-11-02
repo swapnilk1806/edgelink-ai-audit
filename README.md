@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # Edgelink SEO Automation Dashboard
 
 A Next.js 14 application for SEO audits, with an administrator portal, a client dashboard, PostgreSQL persistence, a BullMQ worker, Gemini-powered analysis, and PDF reports.
@@ -206,6 +206,3 @@ backend/
   .env.example             Backend environment template
   reports/                 Local report output
 ```
-=======
-# edgelink-ai-audit
->>>>>>> 772c6b2f22dfd6ac0a825b4b6099c653f733b1a3
