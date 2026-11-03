@@ -73,3 +73,4 @@ export const auditsController = {
     return res.json(await listClientAudits(clientId));
   }
 };
+
