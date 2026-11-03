@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { createAudit, listAudits, listClientAudits } from "../services/audits.service";
+import { createAudit, listAudits, listClientAudits, retryAudit } from "../services/audits.service";
 import { db } from "../lib/db";
 
 const auditSchema = z.object({
@@ -53,13 +53,18 @@ export const auditsController = {
   },
 
   async retry(req: Request, res: Response) {
-    const row = await db().query("SELECT id, client_id, website_url FROM audits WHERE id=$1", [req.params.id]);
-    if (!row.rowCount) return res.status(404).json({ error: "Audit not found" });
-    const audit = row.rows[0];
-    const user = (req as Request & { user?: { id: string } }).user;
-    if (!user) return res.status(401).json({ error: "Unauthorized" });
-    const result = await createAudit(audit.client_id, audit.website_url, user.id);
-    return res.status(201).json(result);
+    const auditId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    try {
+      return res.status(202).json(await retryAudit(auditId));
+    } catch (error) {
+      const status = error instanceof Error && "statusCode" in error && typeof error.statusCode === "number"
+        ? error.statusCode
+        : 500;
+      const message = status === 404 || status === 409
+        ? error instanceof Error ? error.message : "Unable to retry audit"
+        : "Unable to retry audit";
+      return res.status(status).json({ error: message });
+    }
   },
 
   async listForClient(req: Request, res: Response) {

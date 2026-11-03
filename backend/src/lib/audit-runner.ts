@@ -14,6 +14,34 @@ async function progress(auditId: string, value: number, status: string, onProgre
   await onProgress?.(value);
 }
 
+async function deliverAndRecordNotification(
+  auditId: string,
+  channel: "email" | "whatsapp",
+  provider: string,
+  deliver: () => unknown
+) {
+  try {
+    const result = await deliver();
+    const details = result !== null && typeof result === "object" ? result : { result };
+    const status = "status" in details && typeof details.status === "string" ? details.status : "unknown";
+    const messageId = "sid" in details && typeof details.sid === "string" ? details.sid : null;
+    await db().query(
+      `INSERT INTO notification_deliveries(audit_id,channel,provider,status,provider_message_id,details)
+       VALUES($1,$2,$3,$4,$5,$6)`,
+      [auditId, channel, provider, status, messageId, JSON.stringify(details)]
+    );
+    console.info(JSON.stringify({ event: "audit.notification.completed", audit_id: auditId, channel, status }));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Notification delivery failed";
+    await db().query(
+      `INSERT INTO notification_deliveries(audit_id,channel,provider,status,error_message)
+       VALUES($1,$2,$3,'failed',$4)`,
+      [auditId, channel, provider, message]
+    );
+    console.error(JSON.stringify({ event: "audit.notification.failed", audit_id: auditId, channel }));
+  }
+}
+
 export async function runAudit(auditId: string, onProgress?: (value: number) => Promise<void>) {
   try {
     await progress(auditId, 5, "running", onProgress);
@@ -61,8 +89,18 @@ export async function runAudit(auditId: string, onProgress?: (value: number) => 
        ON CONFLICT (audit_id) DO UPDATE SET storage_path=EXCLUDED.storage_path, created_at=now()`,
       [auditId, filePath]
     );
-    sendWhatsApp({ clientId: audit.client_id, pdfPath: filePath, score: result.overall_score });
-    sendEmail({ to: audit.contact_email, auditId });
+    await deliverAndRecordNotification(
+      auditId,
+      "whatsapp",
+      "mock-whatsapp",
+      () => sendWhatsApp({ clientId: audit.client_id, pdfPath: filePath, score: result.overall_score })
+    );
+    await deliverAndRecordNotification(
+      auditId,
+      "email",
+      "mock-email",
+      () => sendEmail({ to: audit.contact_email, auditId })
+    );
     await progress(auditId, 100, "completed", onProgress);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected audit failure";

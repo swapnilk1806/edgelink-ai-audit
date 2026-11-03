@@ -59,3 +59,35 @@ export async function createAudit(clientId: string, websiteUrl: string, createdB
 
   return { ...created.rows[0], job_id: job.id };
 }
+
+export async function retryAudit(auditId: string) {
+  const updated = await db().query(
+    `UPDATE audits
+     SET status='queued', progress=0, error_message=NULL, updated_at=now()
+     WHERE id=$1 AND status='failed'
+     RETURNING id, status, progress, created_at`,
+    [auditId]
+  );
+  if (!updated.rowCount) {
+    const existing = await db().query("SELECT status FROM audits WHERE id=$1", [auditId]);
+    const error = new Error(existing.rowCount ? "Only failed audits can be retried" : "Audit not found") as Error & { statusCode?: number };
+    error.statusCode = existing.rowCount ? 409 : 404;
+    throw error;
+  }
+
+  try {
+    const job = await getAuditQueue().add("run-audit", { auditId }, {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 5000 },
+      removeOnComplete: 100,
+      removeOnFail: 200
+    });
+    return { ...updated.rows[0], job_id: job.id };
+  } catch (error) {
+    await db().query(
+      "UPDATE audits SET status='failed',error_message='Could not enqueue audit retry',updated_at=now() WHERE id=$1",
+      [auditId]
+    );
+    throw error;
+  }
+}

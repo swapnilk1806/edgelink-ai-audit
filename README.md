@@ -1,11 +1,6 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-
->>>>>>> cd879e9b247fa42ff00a254678ad66796cff7a08
 # Edgelink SEO Automation Dashboard
 
-A Next.js 14 application for SEO audits, with an administrator portal, a client dashboard, PostgreSQL persistence, a BullMQ worker, Gemini-powered analysis, and PDF reports.
+A Next.js 14 application for SEO audits, with an administrator portal, a client dashboard, PostgreSQL persistence, a BullMQ worker, Claude-powered analysis, and PDF reports.
 
 ## What it does
 
@@ -13,7 +8,7 @@ A Next.js 14 application for SEO audits, with an administrator portal, a client 
 - Shows audit progress and results in the admin and client portals.
 - Crawls public websites and collects on-page and technical SEO signals.
 - Uses mock PageSpeed, Search Console, and DataForSEO data when `USE_MOCKS=true`.
-- Uses Google Gemini to produce structured findings and recommendations.
+- Uses Claude (`claude-sonnet-4-6`) for structured findings in live mode and evidence-based local analysis in mock mode.
 - Generates downloadable PDF reports.
 - Logs mock email and WhatsApp delivery; these are not live delivery integrations.
 
@@ -24,7 +19,7 @@ A Next.js 14 application for SEO audits, with an administrator portal, a client 
 - The web application and worker both use PostgreSQL and Redis. The worker is a separate process; it does not expose an HTTP port.
 - The web application listens on port `3000` by default. Its API routes use the same host and port, for example `http://localhost:3000/api/admin/overview`.
 
-The worker processes jobs from the `seo-audit-jobs` queue. In broad terms, it crawls the site, gathers applicable signals, requests analysis from Gemini, stores the result, and generates a report.
+The worker processes jobs from the `seo-audit-jobs` queue. It crawls the site, gathers applicable signals, analyzes them, stores the result, generates a report, and records mock notification outcomes.
 
 ## Requirements
 
@@ -32,7 +27,7 @@ The worker processes jobs from the `seo-audit-jobs` queue. In broad terms, it cr
 - npm
 - PostgreSQL (a hosted PostgreSQL service such as Neon or Supabase can be used)
 - Redis TCP access compatible with BullMQ (for example, an Upstash Redis TCP URL)
-- A Google Gemini API key to run audits, including when mock data is enabled
+- An Anthropic API key to run audits with Claude when `USE_MOCKS=false`
 
 ## Local setup
 
@@ -60,7 +55,8 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require
 DATABASE_SSL=auto
 UPSTASH_REDIS_URL=rediss://default:PASSWORD@HOST:6379
 SESSION_SECRET=replace-with-a-random-secret-at-least-32-characters-long
-GEMINI_API_KEY=your-gemini-api-key
+ANTHROPIC_API_KEY=your-anthropic-api-key
+ANTHROPIC_MODEL=claude-sonnet-4-6
 USE_MOCKS=true
 APP_URL=http://localhost:3000
 REPORT_STORAGE_DIR=./reports
@@ -68,7 +64,7 @@ SEED_ADMIN_EMAIL=admin@example.com
 SEED_PASSWORD=replace-with-a-strong-password
 ```
 
-Use the Redis **TCP** connection URL, not an HTTPS REST URL or token. Use the same `SESSION_SECRET` for the web app and worker. `DATABASE_SSL=auto` uses TLS for remote production databases and disables it for localhost; it also accepts `true` or `false`.
+Use the Redis **TCP** connection URL, not an HTTPS REST URL or token. Use the same `SESSION_SECRET` for the web app and worker. `DATABASE_SSL=auto` uses TLS for remote production databases and disables it for localhost; it also accepts `true` or `false`. With `USE_MOCKS=true`, the audit runs without a paid AI key; external sample metrics are only applied when their fixture host matches the audited site.
 
 The frontend reads its server-side environment from `backend/.env` through `frontend/next.config.mjs`; `frontend/.env` contains the same runtime values as a local fallback. Keep those shared values in sync. The backend file is loaded first. Do not put database credentials, Redis credentials, session secrets, or API keys in `NEXT_PUBLIC_*` variables.
 
@@ -103,7 +99,7 @@ Set-Location backend
 npm run worker
 ```
 
-The worker requires the same database, Redis, session, and Gemini configuration. The admin portal can queue jobs while the worker is running.
+The worker requires the same database, Redis, session, and AI configuration. The admin portal can queue jobs while the worker is running.
 
 ## API routes
 
@@ -129,7 +125,8 @@ Use `backend/.env.example` and `frontend/.env.example` as local templates. Keep 
 | `DATABASE_URL` | Yes | PostgreSQL connection string used by the app and worker |
 | `UPSTASH_REDIS_URL` | Yes | Redis TCP URL for BullMQ |
 | `SESSION_SECRET` | Yes | Secret used to sign sessions; use at least 32 characters |
-| `GEMINI_API_KEY` | Yes for audits | Gemini API key; mock provider data does not replace the AI call |
+| `ANTHROPIC_API_KEY` | Live mode only | Anthropic API key for Claude; not required when `USE_MOCKS=true` |
+| `ANTHROPIC_MODEL` | No | Anthropic model name; defaults to `claude-sonnet-4-6` |
 | `DATABASE_SSL` | No | `auto`, `true`, or `false`; defaults to automatic behavior |
 | `APP_URL` | No | App's public URL; defaults to `http://localhost:3000` |
 | `USE_MOCKS` | No | Set to `true` to use the available mock provider data |
@@ -151,7 +148,7 @@ The environment template also includes optional integration placeholders. Do not
    - `DATABASE_SSL=auto`
    - `UPSTASH_REDIS_URL`
    - `SESSION_SECRET` (generate a new, unique production value)
-   - `GEMINI_API_KEY`
+   - `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` when `USE_MOCKS=false`
    - `APP_URL` set to the deployed URL or custom domain
    - `USE_MOCKS=true` for mock provider data, or `false` only if all required live integrations have been implemented
    - `REPORT_STORAGE_DIR=/tmp/reports` for temporary report generation
@@ -164,7 +161,7 @@ Deploy the worker as a long-running Node.js service on a worker-capable host suc
 - Root directory: `backend`
 - Install command: `npm ci`
 - Start command: `npm run worker`
-- Configure the same `DATABASE_URL`, `DATABASE_SSL`, `UPSTASH_REDIS_URL`, `SESSION_SECRET`, and `GEMINI_API_KEY` values as the Vercel project.
+- Configure the same `DATABASE_URL`, `DATABASE_SSL`, `UPSTASH_REDIS_URL`, `SESSION_SECRET`, and Anthropic variables as the Vercel project when using live analysis.
 
 Vercel hosts the web app and its API routes; it should not be used to keep this BullMQ worker running continuously. There is currently no scheduled-audit endpoint in the app, so an external cron service cannot trigger audits until such an endpoint is added and secured.
 
@@ -193,7 +190,7 @@ Set-Location backend
 npm run typecheck
 ```
 
-An end-to-end audit also requires reachable PostgreSQL and Redis services, a valid Gemini API key, and a public website to crawl.
+An end-to-end audit requires reachable PostgreSQL and Redis services and a public website to crawl. A valid Anthropic API key is additionally required only when `USE_MOCKS=false`.
 
 ## Project layout
 
@@ -211,9 +208,3 @@ backend/
   .env.example             Backend environment template
   reports/                 Local report output
 ```
-<<<<<<< HEAD
-=======
-# edgelink-ai-audit
->>>>>>> 772c6b2f22dfd6ac0a825b4b6099c653f733b1a3
-=======
->>>>>>> cd879e9b247fa42ff00a254678ad66796cff7a08

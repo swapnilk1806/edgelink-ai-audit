@@ -9,6 +9,8 @@ import { db } from "@backend/lib/db";
 async function seed() {
   const migration = await readFile(new URL("./migrations/001_initial.sql", import.meta.url), "utf8");
   await db().query(migration);
+  const notificationsMigration = await readFile(new URL("./migrations/002_notification_deliveries.sql", import.meta.url), "utf8");
+  await db().query(notificationsMigration);
   const password = process.env.SEED_PASSWORD;
   const email = process.env.SEED_ADMIN_EMAIL;
   if (!password || !email) throw new Error("Set SEED_ADMIN_EMAIL and SEED_PASSWORD before running the seed command");

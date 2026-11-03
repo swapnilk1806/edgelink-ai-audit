@@ -5,7 +5,8 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1),
   SESSION_SECRET: z.string().min(32),
   UPSTASH_REDIS_URL: z.string().min(1),
-  GEMINI_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  ANTHROPIC_MODEL: z.string().default("claude-sonnet-4-6"),
   APP_URL: z.string().url().default("http://localhost:3000"),
   REPORT_STORAGE_DIR: z.string().default("./reports")
 });
