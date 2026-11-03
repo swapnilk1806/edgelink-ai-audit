@@ -2,6 +2,12 @@
 
 A Next.js 14 application for SEO audits, with an administrator portal, a client dashboard, PostgreSQL persistence, a BullMQ worker, Claude-powered analysis, and PDF reports.
 
+## Project demo
+
+<video src="./vedio/demo.mp4" controls width="100%">
+  Your browser does not support embedded videos. [Open the demo video](./vedio/demo.mp4).
+</video>
+
 ## What it does
 
 - Lets administrators manage client accounts and queue website audits.
