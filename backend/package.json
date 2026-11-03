@@ -9,8 +9,9 @@
     "dev": "tsx watch src/server.ts",
     "start": "node --import tsx src/server.ts",
     "build": "tsc -p tsconfig.json",
-    "test": "tsx --test --tsconfig tsconfig.json src/lib/ai.test.ts",
+    "test": "tsx --test --tsconfig tsconfig.json src/lib/ai.test.ts src/lib/crawler.test.ts",
     "worker": "tsx --tsconfig tsconfig.json src/workers/seo-audit.worker.ts",
+    "db:migrate": "tsx --tsconfig tsconfig.json src/db/migrate.ts",
     "db:seed": "tsx --tsconfig tsconfig.json src/db/seed.ts",
     "db:generate": "prisma generate --config prisma.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"

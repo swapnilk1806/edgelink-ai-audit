@@ -3,7 +3,7 @@ dotenv.config({ path: ".env.local" });
 dotenv.config({ path: ".env" });
 
 async function startWorker() {
-  const [{ Worker, UnrecoverableError }, { getEnv }, { getRedisConnectionOptions }, { runAudit }, { WebsiteAccessError }] = await Promise.all([
+  const [{ Worker, UnrecoverableError }, { getEnv }, { getRedisConnectionOptions }, { runAudit }, { WebsiteAccessError, WebsiteResolutionError }] = await Promise.all([
     import("bullmq"),
     import("@backend/lib/env"),
     import("@backend/lib/redis-connection"),
@@ -17,7 +17,9 @@ async function startWorker() {
     try {
       await runAudit(job.data.auditId as string, (value) => job.updateProgress(value));
     } catch (error) {
-      if (error instanceof WebsiteAccessError) throw new UnrecoverableError(error.message);
+      if (error instanceof WebsiteAccessError || error instanceof WebsiteResolutionError) {
+        throw new UnrecoverableError(error.message);
+      }
       throw error;
     }
   }, {

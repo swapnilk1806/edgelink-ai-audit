@@ -18,6 +18,24 @@ export class WebsiteAccessError extends Error {
   }
 }
 
+export class WebsiteResolutionError extends Error {
+  constructor() {
+    super("Website hostname could not be resolved. Verify the client website URL is a real, publicly reachable domain.");
+    this.name = "WebsiteResolutionError";
+  }
+}
+
+export class WebsiteTimeoutError extends Error {
+  constructor(readonly timeoutMs: number) {
+    super(`The website did not respond within ${Math.round(timeoutMs / 1000)} seconds. Verify it is online and try the audit again.`);
+    this.name = "WebsiteTimeoutError";
+  }
+}
+
+function isTimeoutError(error: unknown) {
+  return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+}
+
 function isPrivateAddress(address: string) {
   const lower = address.toLowerCase();
   if (lower === "::1" || lower.startsWith("fc") || lower.startsWith("fd") || lower.startsWith("fe80:")) return true;
@@ -31,15 +49,32 @@ async function assertPublicHttpUrl(url: URL) {
   if (url.username || url.password) throw new Error("URLs with embedded credentials are not allowed");
   const host = url.hostname.replace(/^\[|\]$/g, "");
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) throw new Error("Private network hosts are not allowed");
-  const addresses = isIP(host) ? [{ address: host }] : await lookup(host, { all: true });
+  let addresses: Awaited<ReturnType<typeof lookup>> | { address: string }[];
+  try {
+    addresses = isIP(host) ? [{ address: host }] : await lookup(host, { all: true });
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOTFOUND") {
+      throw new WebsiteResolutionError();
+    }
+    throw error;
+  }
   if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) throw new Error("Private network hosts are not allowed");
 }
 
-async function safeFetch(target: URL, timeout = 10000): Promise<Response> {
+const websiteRequestTimeoutMs = 30000;
+
+async function safeFetch(target: URL, timeout = websiteRequestTimeoutMs): Promise<Response> {
   let url = target;
   for (let attempt = 0; attempt <= 4; attempt++) {
     await assertPublicHttpUrl(url);
-    const response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(timeout), headers: { "user-agent": "EdgelinkSEOAudit/1.0 (+https://edgelink.example)" } });
+    const signal = AbortSignal.timeout(timeout);
+    let response: Response;
+    try {
+      response = await fetch(url, { redirect: "manual", signal, headers: { "user-agent": "EdgelinkSEOAudit/1.0 (+https://edgelink.example)" } });
+    } catch (error) {
+      if (signal.aborted || isTimeoutError(error)) throw new WebsiteTimeoutError(timeout);
+      throw error;
+    }
     if (![301, 302, 303, 307, 308].includes(response.status)) return response;
     const location = response.headers.get("location");
     if (!location || attempt === 4) throw new Error("Website redirected too many times");
@@ -48,7 +83,7 @@ async function safeFetch(target: URL, timeout = 10000): Promise<Response> {
   throw new Error("Unable to fetch website");
 }
 
-async function readTextLimited(response: Response, maxBytes: number): Promise<string> {
+async function readTextLimited(response: Response, maxBytes: number, timeout = websiteRequestTimeoutMs): Promise<string> {
   if (!response.body) return "";
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -66,6 +101,9 @@ async function readTextLimited(response: Response, maxBytes: number): Promise<st
       result += decoder.decode(value, { stream: true });
     }
     return result + decoder.decode();
+  } catch (error) {
+    if (isTimeoutError(error)) throw new WebsiteTimeoutError(timeout);
+    throw error;
   } finally {
     reader.releaseLock();
   }

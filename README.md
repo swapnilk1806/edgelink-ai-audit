@@ -12,6 +12,21 @@ A Next.js 14 application for SEO audits, with an administrator portal, a client 
 - Generates downloadable PDF reports.
 - Logs mock email and WhatsApp delivery; these are not live delivery integrations.
 
+## Screenshots and sample report
+
+The `img/` folder contains application screenshots. The `report/` folder contains a sample SEO audit as a single PDF.
+
+| Screen | Screenshot |
+|---|---|
+| Admin login | ![Admin login page](./img/admin%20login%20page.png) |
+| Admin dashboard | ![Admin dashboard](./img/admin%20dashboard.png) |
+| Admin clients | ![Admin clients page](./img/admin%20page%20Clients.png) |
+| Admin audit history | ![Admin audit history](./img/admin%20Audit%20history.png) |
+| Client dashboard | ![Client dashboard](./img/clients%20Dashbaord.png) |
+| Client report | ![Client report](./img/clients%20Report.png) |
+
+[Open the sample SEO audit PDF](./report/seo-audit-c13efe23-acc6-4ce2-b55a-23e50224170f.pdf).
+
 ## Architecture
 
 - `frontend/` is the Next.js web application. Its API routes handle authentication, client and audit management, and report downloads.
@@ -68,16 +83,27 @@ Use the Redis **TCP** connection URL, not an HTTPS REST URL or token. Use the sa
 
 The frontend reads its server-side environment from `backend/.env` through `frontend/next.config.mjs`; `frontend/.env` contains the same runtime values as a local fallback. Keep those shared values in sync. The backend file is loaded first. Do not put database credentials, Redis credentials, session secrets, or API keys in `NEXT_PUBLIC_*` variables.
 
+Client website URLs must be real, publicly resolvable websites. Reserved placeholder domains such as `.example` cannot be crawled; update those website URLs in the admin client manager before retrying their audits. For hosted PostgreSQL, use `sslmode=verify-full` in `DATABASE_URL` to retain certificate and hostname verification without the node-postgres compatibility warning.
+
+Website fetches have a 30-second timeout. If an audit times out, verify that the site is reachable from the worker and retry; timeout errors identify whether crawling, Claude analysis, or PDF generation exceeded its limit.
+
 ### Initialize the database
 
 From the repository root:
 
 ```powershell
 Set-Location backend
+npm run db:migrate
+```
+
+For a new installation, create or update the administrator account after configuring `SEED_ADMIN_EMAIL` and `SEED_PASSWORD`:
+
+```powershell
+Set-Location backend
 npm run db:seed
 ```
 
-This command applies the SQL setup and creates or updates the administrator configured by `SEED_ADMIN_EMAIL` and `SEED_PASSWORD`. Use a production-strength password and protect the database credentials.
+The seed command also applies the initial SQL setup. Use a production-strength password and protect the database credentials. Run `npm run db:migrate` before starting the worker after deploying schema changes.
 
 ### Start the app and worker
 
@@ -207,4 +233,6 @@ backend/
   src/workers/             BullMQ worker entry point
   .env.example             Backend environment template
   reports/                 Local report output
+img/                        Application screenshots
+report/                     Sample SEO audit PDF
 ```

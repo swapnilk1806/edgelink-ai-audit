@@ -194,16 +194,25 @@ export async function analyzeAudit(data: unknown): Promise<AuditResult> {
   });
   let response: Response | undefined;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const currentResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01"
-      },
-      body: requestBody,
-      signal: AbortSignal.timeout(60000)
-    });
+    const requestSignal = AbortSignal.timeout(60000);
+    let currentResponse: Response;
+    try {
+      currentResponse = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01"
+        },
+        body: requestBody,
+        signal: requestSignal
+      });
+    } catch (error) {
+      if (requestSignal.aborted || (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError"))) {
+        throw new Error("Claude API request timed out after 60 seconds");
+      }
+      throw error;
+    }
     response = currentResponse;
     if (currentResponse.ok || !transientStatuses.has(currentResponse.status) || attempt === maxAttempts - 1) break;
     await new Promise((resolve) => setTimeout(resolve, retryDelay(currentResponse, attempt)));

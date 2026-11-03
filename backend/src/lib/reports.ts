@@ -58,8 +58,16 @@ export async function generatePdf(auditId: string, result: AuditResult, url: str
   });
   try {
     const page = await browser.newPage();
-    await page.setContent(renderReport(result, url), { waitUntil: "networkidle0" });
-    await page.pdf({ path: filePath, format: "A4", printBackground: true, margin: { top: "18mm", bottom: "18mm", left: "14mm", right: "14mm" } });
+    page.setDefaultTimeout(30000);
+    try {
+      await page.setContent(renderReport(result, url), { waitUntil: "load" });
+      await page.pdf({ path: filePath, format: "A4", printBackground: true, margin: { top: "18mm", bottom: "18mm", left: "14mm", right: "14mm" } });
+    } catch (error) {
+      if (error instanceof Error && error.name === "TimeoutError") {
+        throw new Error("PDF report generation timed out after 30 seconds");
+      }
+      throw error;
+    }
   } finally { await browser.close(); }
   await logR2Upload({ filePath, key: `${auditId}.pdf` });
   return filePath;

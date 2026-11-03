@@ -24,7 +24,7 @@ export function withApiErrors<Args extends unknown[]>(operation: string, handler
           : code === "28P01" || code === "28000"
           ? "Database authentication failed. Verify the username and password in DATABASE_URL."
           : code === "42P01" || code === "3F000"
-            ? "The database schema is missing. Run npm run db:seed after configuring DATABASE_URL."
+            ? "The database schema is missing. Run npm run db:migrate from the backend directory."
             : "The server could not complete this request. Please try again.";
       return NextResponse.json(
         { error: message, request_id: requestId },
